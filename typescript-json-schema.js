@@ -31,6 +31,7 @@ function getDefaultArgs() {
         ignoreErrors: false,
         out: "",
         validationKeywords: [],
+        include: [],
         excludePrivate: false,
     };
 }
@@ -262,6 +263,11 @@ var JsonSchemaGenerator = (function () {
             else if (propertyTypeString === "Date") {
                 definition.type = "string";
                 definition.format = "date-time";
+            }
+            else if (propertyTypeString === "object") {
+                definition.type = "object";
+                definition.properties = {};
+                definition.additionalProperties = true;
             }
             else {
                 var value = extractLiteralValue(propertyType);
@@ -894,7 +900,7 @@ function generateSchema(program, fullTypeName, args, onlyIncludeFiles) {
     }
 }
 exports.generateSchema = generateSchema;
-function programFromConfig(configFileName) {
+function programFromConfig(configFileName, onlyIncludeFiles) {
     var result = ts.parseConfigFileTextToJson(configFileName, ts.sys.readFile(configFileName));
     var configObject = result.config;
     var configParseResult = ts.parseJsonConfigFileContent(configObject, ts.sys, path.dirname(configFileName), {}, path.basename(configFileName));
@@ -904,7 +910,7 @@ function programFromConfig(configFileName) {
     delete options.outDir;
     delete options.outFile;
     delete options.declaration;
-    var program = ts.createProgram(configParseResult.fileNames, options);
+    var program = ts.createProgram(onlyIncludeFiles || configParseResult.fileNames, options);
     return program;
 }
 exports.programFromConfig = programFromConfig;
@@ -919,7 +925,12 @@ function exec(filePattern, fullTypeName, args) {
     var program;
     var onlyIncludeFiles = undefined;
     if (REGEX_TSCONFIG_NAME.test(path.basename(filePattern))) {
-        program = programFromConfig(filePattern);
+        var onlyIncludeFiles_1;
+        if (args.include.length > 0) {
+            var globs = args.include.map(function (f) { return glob.sync(f); });
+            onlyIncludeFiles_1 = (_a = []).concat.apply(_a, globs).map(normalizeFileName);
+        }
+        program = programFromConfig(filePattern, onlyIncludeFiles_1);
     }
     else {
         onlyIncludeFiles = glob.sync(filePattern);
@@ -943,6 +954,7 @@ function exec(filePattern, fullTypeName, args) {
     else {
         process.stdout.write(json);
     }
+    var _a;
 }
 exports.exec = exec;
 //# sourceMappingURL=typescript-json-schema.js.map
